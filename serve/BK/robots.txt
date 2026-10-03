@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://m4025329-cell.github.io/BK/sitemap.xml
