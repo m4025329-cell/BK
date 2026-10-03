@@ -219,6 +219,11 @@ def main():
     if OUT.exists():
         shutil.rmtree(OUT)
     OUT.mkdir()
+    static_dir = ROOT / "static"
+    if static_dir.exists():
+        for f in static_dir.iterdir():
+            if f.is_file():
+                shutil.copy(f, OUT / f.name)
     (OUT / "style.css").write_text(CSS, encoding="utf-8")
     mon = monetization()
     urls = ["/"]
