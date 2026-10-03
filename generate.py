@@ -22,6 +22,26 @@ CURRENCIES = {
     "UZS": "Узбекский сум", "MDL": "Молдавский лей", "AED": "Дирхам ОАЭ",
     "THB": "Таиландский бат", "INR": "Индийская рупия", "CAD": "Канадский доллар",
 }
+# (именительный, родительный, дательный, "в ..." мн.ч.) — для поисковых формулировок
+FORMS = {
+    "USD": ("доллар", "доллара", "доллару", "доллары"), "EUR": ("евро", "евро", "евро", "евро"),
+    "RUB": ("рубль", "рубля", "рублю", "рубли"), "UAH": ("гривна", "гривны", "гривне", "гривны"),
+    "KZT": ("тенге", "тенге", "тенге", "тенге"),
+    "BYN": ("белорусский рубль", "белорусского рубля", "белорусскому рублю", "белорусские рубли"),
+    "PLN": ("злотый", "злотого", "злотому", "злотые"), "GBP": ("фунт", "фунта", "фунту", "фунты"),
+    "CNY": ("юань", "юаня", "юаню", "юани"),
+    "TRY": ("турецкая лира", "турецкой лиры", "турецкой лире", "турецкие лиры"),
+    "CZK": ("чешская крона", "чешской кроны", "чешской кроне", "чешские кроны"),
+    "CHF": ("швейцарский франк", "швейцарского франка", "швейцарскому франку", "швейцарские франки"),
+    "JPY": ("иена", "иены", "иене", "иены"), "GEL": ("лари", "лари", "лари", "лари"),
+    "AMD": ("драм", "драма", "драму", "драмы"),
+    "AZN": ("азербайджанский манат", "азербайджанского маната", "азербайджанскому манату", "азербайджанские манаты"),
+    "UZS": ("узбекский сум", "узбекского сума", "узбекскому суму", "узбекские сумы"),
+    "MDL": ("молдавский лей", "молдавского лея", "молдавскому лею", "молдавские леи"),
+    "AED": ("дирхам", "дирхама", "дирхаму", "дирхамы"), "THB": ("бат", "бата", "бату", "баты"),
+    "INR": ("индийская рупия", "индийской рупии", "индийской рупии", "индийские рупии"),
+    "CAD": ("канадский доллар", "канадского доллара", "канадскому доллару", "канадские доллары"),
+}
 AMOUNTS = [1, 5, 10, 50, 100, 500, 1000, 5000, 10000, 50000]
 SAMPLE = {"USD": 1, "EUR": 0.92, "RUB": 92, "UAH": 41, "KZT": 480, "BYN": 3.27, "PLN": 4.0,
           "GBP": 0.79, "CNY": 7.2, "TRY": 34, "CZK": 23, "CHF": 0.88, "JPY": 150, "GEL": 2.7,
@@ -89,8 +109,16 @@ def page(title, desc, path, body, jsonld=None):
         head_extra += (f'<script async src="https://www.googletagmanager.com/gtag/js?id={a}"></script>'
                        f'<script>window.dataLayer=window.dataLayer||[];function gtag(){{dataLayer.push(arguments)}}'
                        f'gtag("js",new Date());gtag("config","{a}");</script>')
-    if jsonld:
-        head_extra += f'<script type="application/ld+json">{json.dumps(jsonld, ensure_ascii=False)}</script>'
+    for key, name in (("google_verification", "google-site-verification"), ("yandex_verification", "yandex-verification")):
+        if CFG.get(key):
+            head_extra += f'<meta name="{name}" content="{html.escape(CFG[key])}">'
+    head_extra += (f'<meta name="robots" content="index,follow,max-image-preview:large">'
+                   f'<meta property="og:type" content="website"><meta property="og:locale" content="ru_RU">'
+                   f'<meta property="og:title" content="{html.escape(title)}">'
+                   f'<meta property="og:description" content="{html.escape(desc)}"><meta property="og:url" content="{url}">'
+                   f'<meta property="og:site_name" content="{html.escape(CFG["site_name"])}">')
+    for ld in (jsonld if isinstance(jsonld, list) else [jsonld] if jsonld else []):
+        head_extra += f'<script type="application/ld+json">{json.dumps(ld, ensure_ascii=False)}</script>'
     return f"""<!doctype html><html lang="ru"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#1e40af">
@@ -105,7 +133,7 @@ def page(title, desc, path, body, jsonld=None):
 <nav class="top" aria-label="Основная"><a href="{BASE}/usd-rub/">USD</a><a href="{BASE}/eur-rub/">EUR</a><a href="{BASE}/usd-kzt/">KZT</a><a href="{BASE}/usd-uah/">UAH</a></nav>
 </div></header>
 <main><div class="wrap">{body}</div></main>
-<footer class="bot"><div class="wrap"><p>Курсы носят справочный характер и не являются офертой. Источник: open.er-api.com. © {html.escape(CFG['site_name'])}</p></div></footer>
+<footer class="bot"><div class="wrap"><p>Курсы носят справочный характер и не являются офертой. <a href="https://www.exchangerate-api.com" rel="noopener">Rates By Exchange Rate API</a>. © {html.escape(CFG['site_name'])}</p></div></footer>
 </body></html>"""
 
 
@@ -182,6 +210,7 @@ def main():
     rates, updated = fetch_rates(offline)
     codes = [c for c in CURRENCIES if c in rates]
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    today_h = datetime.now(timezone.utc).strftime("%d.%m.%Y")
     try:
         from email.utils import parsedate_to_datetime
         updated_h = parsedate_to_datetime(updated).strftime("%d.%m.%Y %H:%M UTC")
@@ -210,8 +239,8 @@ def main():
             others = "".join(f'<a class="chip" href="{BASE}/{a.lower()}-{x.lower()}/">{a} → {x}</a>'
                              for x in codes if x not in (a, b))
             body = f"""<div class="crumbs"><a href="{BASE}/">Главная</a> › {a} → {b}</div>
-<h1>{a} в {b}: курс на {today}</h1>
-<p class="lead">{name_a} к валюте «{name_b}»</p>
+<h1>Курс {FORMS[a][1]} к {FORMS[b][2]} на {today_h} ({a} → {b})</h1>
+<p class="lead">Сегодня 1 {FORMS[a][0]} ({a}) стоит {fmt(r)} {b}. Ниже онлайн-конвертер {a} в {b} и таблица популярных сумм.</p>
 <section class="card" aria-label="Курс">
 <div class="rate num">1 {a} = {fmt(r)}<small>{b}</small></div>
 <div class="sub num">Обратный курс: 1 {b} = {fmt(1 / r)} {a} · обновляется ежедневно</div>
@@ -229,16 +258,25 @@ def main():
 <div><h2>{a} → {b}</h2><div class="card tbl"><table><thead><tr><th>{a}</th><th>{b}</th></tr></thead><tbody>{rows}</tbody></table></div></div>
 <div><h2>{b} → {a}</h2><div class="card tbl"><table><thead><tr><th>{b}</th><th>{a}</th></tr></thead><tbody>{rev}</tbody></table></div></div>
 </div>
+<h2>Сколько будет {a} в {b}</h2>
+<p>На {today_h} <b class="num">100 {a} = {fmt(100 * r)} {b}</b>, <b class="num">1&nbsp;000 {a} = {fmt(1000 * r)} {b}</b>, <b class="num">10&nbsp;000 {a} = {fmt(10000 * r)} {b}</b>. Обратный курс: <b class="num">1 {b} = {fmt(1 / r)} {a}</b>, то есть 100 {b} — это {fmt(100 / r)} {a}. Курс {FORMS[a][1]} к {FORMS[b][2]} рассчитан по данным международных рынков и обновляется раз в сутки.</p>
 <h2>Другие направления {a}</h2><div class="chips">{others}</div>"""
-            faq = {"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": [{
-                "@type": "Question", "name": f"Сколько будет 1 {a} в {b}?",
-                "acceptedAnswer": {"@type": "Answer", "text": f"На {today} 1 {a} = {fmt(r)} {b}."}}]}
+            q = lambda n, t: {"@type": "Question", "name": n, "acceptedAnswer": {"@type": "Answer", "text": t}}
+            faq = {"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": [
+                q(f"Какой курс {FORMS[a][1]} к {FORMS[b][2]} сегодня?", f"На {today_h} 1 {a} = {fmt(r)} {b}."),
+                q(f"Сколько будет 100 {a} в {b}?", f"На {today_h} 100 {a} = {fmt(100 * r)} {b}."),
+                q(f"Сколько {a} в 1 {b}?", f"На {today_h} 1 {b} = {fmt(1 / r)} {a}.")]}
+            crumbs = {"@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": [
+                {"@type": "ListItem", "position": 1, "name": "Главная", "item": CFG["site_url"].rstrip("/") + "/"},
+                {"@type": "ListItem", "position": 2, "name": f"{a} в {b}",
+                 "item": CFG["site_url"].rstrip("/") + f"/{a.lower()}-{b.lower()}/"}]}
             d = OUT / f"{a.lower()}-{b.lower()}"
             d.mkdir()
             (d / "index.html").write_text(page(
-                f"{a} в {b} — курс на {today}, конвертер валют",
-                f"Курс {a} к {b} сегодня: 1 {a} = {fmt(r)} {b}. Конвертер и таблицы сумм.",
-                f"/{a.lower()}-{b.lower()}/", body, faq), encoding="utf-8")
+                f"{FORMS[a][0].capitalize()} в {FORMS[b][3]}: курс {a}/{b} на {today_h}, конвертер",
+                f"Курс {FORMS[a][1]} к {FORMS[b][2]} сегодня: 1 {a} = {fmt(r)} {b}. Онлайн-конвертер {a} в {b}, "
+                f"таблица сумм и обратный курс. Обновляется ежедневно.",
+                f"/{a.lower()}-{b.lower()}/", body, [faq, crumbs]), encoding="utf-8")
             urls.append(f"/{a.lower()}-{b.lower()}/")
 
     # главная
@@ -258,8 +296,9 @@ def main():
                  ".indexOf(t)>-1?'':'none'});document.querySelectorAll('.grp').forEach(function(g){g.style.display="
                  "g.querySelector('.chip:not([style*=none])')?'':'none'})}</script>")
     (OUT / "index.html").write_text(page(
-        f"{CFG['site_name']} — конвертер {', '.join(pop[:4])} и других валют",
-        "Актуальные курсы валют и онлайн-конвертер. Обновляется ежедневно.", "/",
+        f"{CFG['site_name']}: курс доллара, евро, рубля, тенге, гривны — онлайн-конвертер валют",
+        "Курсы валют на сегодня: доллар, евро, рубль, гривна, тенге, злотый, юань, лира и другие. "
+        "Онлайн-конвертер и таблицы сумм, обновляется ежедневно.", "/",
         f"<h1>{html.escape(CFG['site_name'])}</h1><p class=\"lead\">Актуальные курсы и конвертер. Обновлено: {html.escape(updated_h)}</p>"
         f'<div class="search">{SEARCH}<input id="q" type="search" placeholder="Найти валюту: USD, евро, тенге…" '
         f'aria-label="Поиск валюты" autocomplete="off"></div>'
@@ -275,6 +314,10 @@ def main():
     if CFG["adsense_client"]:
         pub = CFG["adsense_client"].replace("ca-", "")
         (OUT / "ads.txt").write_text(f"google.com, {pub}, DIRECT, f08c47fec0942fa0\n")
+    key = CFG.get("indexnow_key")
+    if key:
+        (OUT / f"{key}.txt").write_text(key)
+        (OUT / "urls.txt").write_text("\n".join(site + u for u in urls))
     (OUT / ".nojekyll").write_text("")
     print(f"Сгенерировано страниц: {len(urls)} -> {OUT}")
 

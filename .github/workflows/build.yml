@@ -28,3 +28,6 @@ jobs:
         with: { path: dist }
       - id: deployment
         uses: actions/deploy-pages@v4
+      - name: Notify Bing/Yandex (IndexNow)
+        continue-on-error: true
+        run: python3 indexnow.py
